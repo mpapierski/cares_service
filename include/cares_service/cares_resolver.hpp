@@ -91,22 +91,6 @@ struct resolver
 			addresses->resize(matches);
 			detail::iterator result_iterator(addresses);
 			ctx->self->get_io_service().post(boost::bind<void>(callback, ec, result_iterator));
-#if 0			
-			// we have enough space, copy the results to the object
-			for(int i = 0 ; i < matches ; i++)
-			{
-				char *name = inet_ntoa(addresses[i].ipaddr);
-				std::cout << "IP is " << name << ", TTL is " << addresses[i].ttl << std::endl;
-			}
-			for(int i = 0; host->h_aliases[i]!=NULL;i++)
-			{
-				std::cout << "Alias " << (i+1) << ". " << host->h_aliases[i] << std::endl;
-			}
-			for(int i = 0 ;  host->h_addr_list[i] != NULL; i++)
-			{
-				printf("%d.%d.%d.%d\n",(unsigned char)host->h_addr_list[i][0],(unsigned char)host->h_addr_list[i][1],(unsigned char)host->h_addr_list[i][2],(unsigned char)host->h_addr_list[i][3]);
-			}
-#endif
 			// done
 			return;
 		}
