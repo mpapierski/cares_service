@@ -36,17 +36,17 @@ struct resolver
 		chan->init(ec);
 		if (ec)
 		{
-			get_io_service().post(boost::bind<void>(callback, ec, detail::iterator()));
+			get_io_service().post(boost::bind<void>(callback, ec, a_reply_iterator()));
 			return;
 		}
 		callback_context<Callback> * context = new callback_context<Callback>();
 		context->self = this;
 		context->callback = callback;
-		::ares_query(chan->get(), input.c_str(), ns_c_in, ns_t_a, &ares_callback_function_a<Callback>, context);
+		::ares_query(chan->get(), input.c_str(), ns_c_in, ns_t_a, &ares_callback_function<struct ares_addrttl, Callback>, context);
 		chan->getsock();
 	};
-	template <typename Callback>
-	static void ares_callback_function_a(void *arg, int status, int timeouts, unsigned char *abuf, int alen)
+	template <typename Result, typename Callback>
+	static void ares_callback_function(void *arg, int status, int timeouts, unsigned char *abuf, int alen)
 	{
 		assert(arg);
 		boost::shared_ptr<callback_context<Callback> > ctx(static_cast<callback_context<Callback> *>(arg));
@@ -55,7 +55,7 @@ struct resolver
 		if (ec)
 		{
 			assert(ctx->self);
-			ctx->self->get_io_service().post(boost::bind<void>(callback, ec, detail::iterator()));
+			ctx->self->get_io_service().post(boost::bind<void>(callback, ec, detail::result_iterator<Result>()));
 			return;
 		}
 		struct ares_addrttl *addrttls = nullptr;
@@ -64,15 +64,15 @@ struct resolver
 		ec.assign(::ares_parse_a_reply(abuf, alen, &host, addrttls, &num), get_error_category());
 		if (ec)
 		{
-			ctx->self->get_io_service().post(boost::bind<void>(callback, ec, detail::iterator()));
+			ctx->self->get_io_service().post(boost::bind<void>(callback, ec, detail::result_iterator<Result>()));
 			return;
 		}
 		// try parsing answer
 		for (int size = 8; true; size += 4)
 		{
 			// allocate memory
-			boost::shared_ptr<std::vector<struct ares_addrttl> > addresses =
-				boost::make_shared<std::vector<struct ares_addrttl> >(size);
+			boost::shared_ptr<std::vector<Result> > addresses =
+				boost::make_shared<std::vector<Result> >(size);
 			// copy size
 			int matches = size;
 			
@@ -82,14 +82,14 @@ struct resolver
 			// on failure we leap out, otherwise we continue to allocate more memory
 			if (ec)
 			{
-				ctx->self->get_io_service().post(boost::bind<void>(callback, ec, detail::iterator()));
+				ctx->self->get_io_service().post(boost::bind<void>(callback, ec, detail::result_iterator<Result>()));
 				return;
 			}
 			
 			// check if we had enough space
 			if (matches >= size) continue;
 			addresses->resize(matches);
-			detail::iterator result_iterator(addresses);
+			detail::result_iterator<Result> result_iterator(addresses);
 			ctx->self->get_io_service().post(boost::bind<void>(callback, ec, result_iterator));
 			// done
 			return;

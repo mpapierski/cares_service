@@ -8,56 +8,52 @@ namespace services {
 namespace cares {
 namespace detail {
 
-struct iterator
-	: public std::iterator<std::forward_iterator_tag, struct ares_addrttl>
+template <typename T>
+struct result_iterator
+	: public std::iterator<std::forward_iterator_tag, T>
 {
-	iterator()
+	result_iterator()
 	{
 	}
-	iterator(const boost::shared_ptr<std::vector<struct ares_addrttl> > & addresses)
+	result_iterator(const boost::shared_ptr<std::vector<T> > & addresses)
 		: addresses_(addresses)
 		, it_(addresses_->begin())
 	{
 	}
-	iterator & operator++()
+	result_iterator & operator++()
 	{
 		++it_;
 		return *this;
 	}
-#if 0
-	iterator operator++(int)
-	{
-		iterator tmp(*this);
-		operator++();
-		return tmp;
-	}
-#endif
-	bool operator==(const iterator & rhs)
+	bool operator==(const result_iterator & rhs)
 	{
 		return (!addresses_ && !rhs.addresses_)
 			|| (addresses_ && !rhs.addresses_ && it_ == addresses_->end())
 			|| ((addresses_ == rhs.addresses_) && (it_ == rhs.it_));
 	}
-	bool operator!=(const iterator & rhs)
+	bool operator!=(const result_iterator & rhs)
 	{
 		return !(operator==(rhs));
 	}
-	struct ares_addrttl & operator*()
+	T & operator*()
 	{
 		assert(it_ != addresses_->end());
 		return *it_;
 	}
-	struct ares_addrttl * operator->()
+	T * operator->()
 	{
 		assert(it_ != addresses_->end());
 		return &*it_;
 	}
-	typedef std::vector<struct ares_addrttl> addresses_type;
-	boost::shared_ptr<addresses_type> addresses_;
-	addresses_type::iterator it_;
+	typedef std::vector<T> result_type;
+	boost::shared_ptr<result_type> addresses_;
+	typename result_type::iterator it_;
 };
 
 }
+
+typedef detail::result_iterator<struct ares_addrttl> a_reply_iterator;
+
 }
 }
 

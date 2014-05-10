@@ -16,7 +16,7 @@ do \
 void test1()
 {
 	TESTCASE;
-	detail::iterator it1, it2;
+	a_reply_iterator it1, it2;
 	assert(it1 == it2);
 	assert(!(it1 != it2));
 }
@@ -25,7 +25,7 @@ void test2()
 {
 	TESTCASE;
 	auto vec = boost::make_shared<std::vector<struct ares_addrttl> >(10);
-	detail::iterator it1(vec), end;
+	a_reply_iterator it1(vec), end;
 	assert(it1 != end);
 }
 
@@ -33,8 +33,8 @@ void test3()
 {
 	TESTCASE;
 	auto vec = boost::make_shared<std::vector<struct ares_addrttl> >(3);
-	detail::iterator it1(vec), end;
-	detail::iterator it2 = it1;
+	a_reply_iterator it1(vec), end;
+	a_reply_iterator it2 = it1;
 	assert(it1.addresses_ == it2.addresses_);
 	assert(it1.it_ == it2.it_);
 	assert(it1 == it2);
