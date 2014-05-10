@@ -29,7 +29,7 @@ struct resolver
 		return io_service_;
 	}
 	template <typename Callback>
-	void resolve(const std::string & input, const Callback & callback)
+	void resolve_a(const std::string & input, const Callback & callback)
 	{
 		boost::shared_ptr<detail::channel> chan = boost::asio::use_service<cares>(io_service_).get_channel();
 		boost::system::error_code ec;
@@ -42,11 +42,11 @@ struct resolver
 		callback_context<Callback> * context = new callback_context<Callback>();
 		context->self = this;
 		context->callback = callback;
-		::ares_query(chan->get(), input.c_str(), ns_c_in, ns_t_a, &ares_callback_function<Callback>, context);
+		::ares_query(chan->get(), input.c_str(), ns_c_in, ns_t_a, &ares_callback_function_a<Callback>, context);
 		chan->getsock();
 	};
 	template <typename Callback>
-	static void ares_callback_function(void *arg, int status, int timeouts, unsigned char *abuf, int alen)
+	static void ares_callback_function_a(void *arg, int status, int timeouts, unsigned char *abuf, int alen)
 	{
 		assert(arg);
 		boost::shared_ptr<callback_context<Callback> > ctx(static_cast<callback_context<Callback> *>(arg));

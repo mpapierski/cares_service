@@ -24,7 +24,7 @@ main(int argc, char * argv[])
 	{
 		std::string url(argv[i]);
 		std::cout << "Resolve... " << url << std::endl;
-		resolver.resolve(argv[i], boost::bind(&handle_resolve,
+		resolver.resolve_a(argv[i], boost::bind(&handle_resolve,
 			boost::asio::placeholders::error,
 			boost::asio::placeholders::iterator,
 			url));
