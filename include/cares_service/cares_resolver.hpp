@@ -70,17 +70,14 @@ struct resolver
 		// try parsing answer
 		for (int size = 8; true; size += 4)
 		{
-			std::cout << "size=" << size << std::endl;
 			// allocate memory
 			boost::shared_ptr<std::vector<struct ares_addrttl> > addresses =
 				boost::make_shared<std::vector<struct ares_addrttl> >(size);
-			struct hostent * host = nullptr;
-			
 			// copy size
 			int matches = size;
 			
 			// parse the answer
-			ec.assign(::ares_parse_a_reply(abuf, alen, &host, addresses->data(), &matches), get_error_category());
+			ec.assign(::ares_parse_a_reply(abuf, alen, nullptr, addresses->data(), &matches), get_error_category());
 
 			// on failure we leap out, otherwise we continue to allocate more memory
 			if (ec)

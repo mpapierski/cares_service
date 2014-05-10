@@ -31,13 +31,9 @@ public:
 	{
 		boost::system::error_code ec(::ares_library_init(ARES_LIB_INIT_ALL), get_error_category());
 		boost::asio::detail::throw_error(ec, "ares_library_init");
-	}	
-	~base_cares()
-	{
 	}
 	void shutdown_service()
 	{
-		std::cout << "ares_library_cleanup" << std::endl;
 		::ares_library_cleanup();
 	}
 	boost::shared_ptr<detail::channel> get_channel()

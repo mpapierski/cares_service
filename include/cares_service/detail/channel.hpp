@@ -41,7 +41,6 @@ struct channel
 	~channel()
 	{
 		assert(initialized_);
-		std::cout << "ares_destroy" << std::endl;
 		::ares_destroy(channel_);
 	}
 	inline

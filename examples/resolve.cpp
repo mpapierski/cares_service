@@ -1,5 +1,4 @@
 #include <boost/asio.hpp>
-#include <boost/lexical_cast.hpp>
 #include "cares_service/cares_resolver.hpp"
 
 void handle_resolve(const boost::system::error_code & ec,
@@ -12,7 +11,7 @@ void handle_resolve(const boost::system::error_code & ec,
 		it != services::cares::detail::iterator();
 		++it)
 	{
-		std::cout << ++i << ". " << boost::lexical_cast<std::string>(*it) << std::endl;
+		std::cout << ++i << ". " << *it << " TTL=" << it->ttl << std::endl;
 	}
 }
 
