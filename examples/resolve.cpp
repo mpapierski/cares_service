@@ -2,14 +2,12 @@
 #include "cares_service/cares_resolver.hpp"
 
 void handle_resolve_a(const boost::system::error_code & ec,
-	services::cares::a_reply_iterator endpoint_iterator,
+	services::cares::a_reply_iterator iter,
 	const char * input)
 {
-	for (services::cares::a_reply_iterator it = endpoint_iterator;
-		it != services::cares::a_reply_iterator();
-		++it)
+	for (; iter != services::cares::a_reply_iterator();	++iter)
 	{
-		std::cout << input << "\tA\t" << *it << "\tTTL=" << it->ttl << std::endl;
+		std::cout << input << "\tA\t" << *iter << "\tTTL=" << iter->ttl << std::endl;
 	}
 }
 
