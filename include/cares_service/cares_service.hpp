@@ -12,6 +12,7 @@
 #include <arpa/nameser.h>
 #include "detail/error.hpp"
 #include "detail/channel.hpp"
+#include "cares_service/detail/stream_support.hpp"
 
 namespace services {
 namespace cares {

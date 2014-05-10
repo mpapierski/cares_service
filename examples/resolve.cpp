@@ -1,10 +1,19 @@
 #include <boost/asio.hpp>
+#include <boost/lexical_cast.hpp>
 #include "cares_service/cares_resolver.hpp"
 
 void handle_resolve(const boost::system::error_code & ec,
+	services::cares::detail::iterator endpoint_iterator,
 	std::string input)
 {
 	std::cout << input << ": " << ec.message() << std::endl;
+	int i = 0;
+	for (services::cares::detail::iterator it = endpoint_iterator;
+		it != services::cares::detail::iterator();
+		++it)
+	{
+		std::cout << ++i << ". " << boost::lexical_cast<std::string>(*it) << std::endl;
+	}
 }
 
 int
@@ -18,6 +27,7 @@ main(int argc, char * argv[])
 		std::cout << "Resolve... " << url << std::endl;
 		resolver.resolve(argv[i], boost::bind(&handle_resolve,
 			boost::asio::placeholders::error,
+			boost::asio::placeholders::iterator,
 			url));
 	}
 	io_service.run();
