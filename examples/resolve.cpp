@@ -1,5 +1,5 @@
 #include <boost/asio.hpp>
-#include "cares_service/cares_service.hpp"
+#include "cares_service/cares_resolver.hpp"
 
 void handle_resolve(const boost::system::error_code & ec,
 	std::string input)
@@ -11,12 +11,12 @@ int
 main(int argc, char * argv[])
 {
 	boost::asio::io_service io_service;
-	services::cares::cares & cares_service = boost::asio::use_service<services::cares::cares>(io_service);
+	services::cares::resolver resolver(io_service);
 	for (int i = 1; i < argc; ++i)
 	{
 		std::string url(argv[i]);
 		std::cout << "Resolve... " << url << std::endl;
-		cares_service.resolve(argv[i], boost::bind(&handle_resolve,
+		resolver.resolve(argv[i], boost::bind(&handle_resolve,
 			boost::asio::placeholders::error,
 			url));
 	}

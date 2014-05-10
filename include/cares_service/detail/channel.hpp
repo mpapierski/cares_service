@@ -10,6 +10,9 @@ namespace services {
 namespace cares {
 namespace detail {
 
+/**
+ * c-ares channel wrapper
+ */
 struct channel
 	: boost::enable_shared_from_this<channel>
 {
