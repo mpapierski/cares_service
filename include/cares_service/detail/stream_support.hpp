@@ -12,4 +12,12 @@ std::ostream & operator<<(std::ostream & lhs, const struct ares_addrttl & rhs)
 	return lhs << result;
 }
 
+std::ostream & operator<<(std::ostream & lhs, const struct ares_addr6ttl & rhs)
+{
+	char buf[1024] = {0};
+	const char * result = ares_inet_ntop(AF_INET6, &(rhs.ip6addr), buf, 1023);
+	assert(result == buf);
+	return lhs << result;
+}
+
 #endif

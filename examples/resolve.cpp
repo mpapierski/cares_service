@@ -1,17 +1,27 @@
 #include <boost/asio.hpp>
 #include "cares_service/cares_resolver.hpp"
 
-void handle_resolve(const boost::system::error_code & ec,
+void handle_resolve_a(const boost::system::error_code & ec,
 	services::cares::a_reply_iterator endpoint_iterator,
-	std::string input)
+	const char * input)
 {
-	std::cout << input << ": " << ec.message() << std::endl;
-	int i = 0;
 	for (services::cares::a_reply_iterator it = endpoint_iterator;
 		it != services::cares::a_reply_iterator();
 		++it)
 	{
-		std::cout << ++i << ". " << *it << " TTL=" << it->ttl << std::endl;
+		std::cout << input << "\tA\t" << *it << "\tTTL=" << it->ttl << std::endl;
+	}
+}
+
+void handle_resolve_aaaa(const boost::system::error_code & ec,
+	services::cares::aaaa_reply_iterator endpoint_iterator,
+	const char * input)
+{
+	for (services::cares::aaaa_reply_iterator it = endpoint_iterator;
+		it != services::cares::aaaa_reply_iterator();
+		++it)
+	{
+		std::cout << input << "\tAAAA\t" << *it << "\tTTL=" << it->ttl << std::endl;
 	}
 }
 
@@ -22,9 +32,13 @@ main(int argc, char * argv[])
 	services::cares::resolver resolver(io_service);
 	for (int i = 1; i < argc; ++i)
 	{
-		std::string url(argv[i]);
+		const char * url = argv[i];
 		std::cout << "Resolve... " << url << std::endl;
-		resolver.resolve_a(argv[i], boost::bind(&handle_resolve,
+		resolver.resolve_a(url, boost::bind(&handle_resolve_a,
+			boost::asio::placeholders::error,
+			boost::asio::placeholders::iterator,
+			url));
+		resolver.resolve_aaaa(url, boost::bind(&handle_resolve_aaaa,
 			boost::asio::placeholders::error,
 			boost::asio::placeholders::iterator,
 			url));

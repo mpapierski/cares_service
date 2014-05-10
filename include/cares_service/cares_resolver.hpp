@@ -28,6 +28,16 @@ struct resolver
 	{
 		return io_service_;
 	}
+	void parse_reply(const unsigned char * abuf, int alen, struct ares_addrttl * addresses, int * matches, boost::system::error_code & ec)
+	{
+		ec.clear();
+		ec.assign(::ares_parse_a_reply(abuf, alen, nullptr, addresses, matches), get_error_category());
+	}
+	void parse_reply(const unsigned char * abuf, int alen, struct ares_addr6ttl * addresses, int * matches, boost::system::error_code & ec)
+	{
+		ec.clear();
+		ec.assign(::ares_parse_aaaa_reply(abuf, alen, nullptr, addresses, matches), get_error_category());
+	}
 	template <typename Callback>
 	void resolve_a(const std::string & input, const Callback & callback)
 	{
@@ -45,6 +55,23 @@ struct resolver
 		::ares_query(chan->get(), input.c_str(), ns_c_in, ns_t_a, &ares_callback_function<struct ares_addrttl, Callback>, context);
 		chan->getsock();
 	};
+	template <typename Callback>
+	void resolve_aaaa(const std::string & input, const Callback & callback)
+	{
+		boost::shared_ptr<detail::channel> chan = boost::asio::use_service<cares>(io_service_).get_channel();
+		boost::system::error_code ec;
+		chan->init(ec);
+		if (ec)
+		{
+			get_io_service().post(boost::bind<void>(callback, ec, aaaa_reply_iterator()));
+			return;
+		}
+		callback_context<Callback> * context = new callback_context<Callback>();
+		context->self = this;
+		context->callback = callback;
+		::ares_query(chan->get(), input.c_str(), ns_c_in, ns_t_aaaa, &ares_callback_function<struct ares_addr6ttl, Callback>, context);
+		chan->getsock();
+	};
 	template <typename Result, typename Callback>
 	static void ares_callback_function(void *arg, int status, int timeouts, unsigned char *abuf, int alen)
 	{
@@ -58,15 +85,6 @@ struct resolver
 			ctx->self->get_io_service().post(boost::bind<void>(callback, ec, detail::result_iterator<Result>()));
 			return;
 		}
-		struct ares_addrttl *addrttls = nullptr;
-		struct hostent * host = nullptr;
-		int num;
-		ec.assign(::ares_parse_a_reply(abuf, alen, &host, addrttls, &num), get_error_category());
-		if (ec)
-		{
-			ctx->self->get_io_service().post(boost::bind<void>(callback, ec, detail::result_iterator<Result>()));
-			return;
-		}
 		// try parsing answer
 		for (int size = 8; true; size += 4)
 		{
@@ -77,7 +95,8 @@ struct resolver
 			int matches = size;
 			
 			// parse the answer
-			ec.assign(::ares_parse_a_reply(abuf, alen, nullptr, addresses->data(), &matches), get_error_category());
+			ctx->self->parse_reply(abuf, alen, addresses->data(), &matches, ec);
+			//ec.assign(::ares_parse_a_reply(abuf, alen, nullptr, addresses->data(), &matches), get_error_category());
 
 			// on failure we leap out, otherwise we continue to allocate more memory
 			if (ec)
