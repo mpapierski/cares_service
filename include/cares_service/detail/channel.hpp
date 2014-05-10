@@ -14,6 +14,7 @@ struct channel
 	: boost::enable_shared_from_this<channel>
 {
 	boost::asio::io_service & io_service_;
+	boost::asio::io_service::work keep_busy_;
 	bool initialized_;
 	ares_channel channel_;
 	
@@ -22,6 +23,7 @@ struct channel
 
 	channel(boost::asio::io_service & io_service)
 		: io_service_(io_service)
+		, keep_busy_(io_service_)
 		, initialized_(false)
 		, channel_()
 	{
@@ -79,7 +81,6 @@ struct channel
 				stream_descriptors_.emplace_back(std::move(fd));
 			}
 		}
-		std::cout << "sz=" << stream_descriptors_.size() << std::endl;
 	}
 	void read_handler(const boost::system::error_code & ec, std::size_t,
 		ares_socket_t fd)
