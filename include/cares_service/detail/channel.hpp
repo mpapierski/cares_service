@@ -1,7 +1,7 @@
 #if !defined(CARES_SERVICE_DETAIL_CHANNEL_HPP_)
 #define CARES_SERVICE_DETAIL_CHANNEL_HPP_
 
-#include <vector>
+#include <map>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/bind.hpp>
 #include <boost/array.hpp>
@@ -21,7 +21,7 @@ struct channel
 	bool initialized_;
 	ares_channel channel_;
 	
-	typedef std::vector<boost::asio::posix::stream_descriptor> stream_descriptors_type;
+	typedef std::map<int, boost::asio::posix::stream_descriptor> stream_descriptors_type;
 	stream_descriptors_type stream_descriptors_;
 
 	channel(boost::asio::io_service & io_service)
@@ -63,10 +63,18 @@ struct channel
 			if (ARES_GETSOCK_READABLE(bitmask, i)
 				|| ARES_GETSOCK_WRITABLE(bitmask, i))
 			{
-				boost::asio::posix::stream_descriptor fd(io_service_, sockets_[i]);
+				boost::asio::posix::stream_descriptor descriptor(io_service_);
+				auto result =
+					stream_descriptors_.emplace(sockets_[i], std::move(descriptor));
+				if (result.second)
+				{
+					assert(!result.first->second.is_open());
+					result.first->second.assign(sockets_[i]);
+				}
+				assert(result.first->second.is_open());
 				if (ARES_GETSOCK_READABLE(bitmask, i))
 				{
-					fd.async_read_some(boost::asio::null_buffers(),
+					result.first->second.async_read_some(boost::asio::null_buffers(),
 						boost::bind(&channel::read_handler, shared_from_this(),
 							boost::asio::placeholders::error,
 							boost::asio::placeholders::bytes_transferred,
@@ -74,13 +82,12 @@ struct channel
 				}
 				if (ARES_GETSOCK_WRITABLE(bitmask, i))
 				{
-					fd.async_write_some(boost::asio::null_buffers(),
+					result.first->second.async_write_some(boost::asio::null_buffers(),
 						boost::bind(&channel::write_handler, shared_from_this(),
 							boost::asio::placeholders::error,
 							boost::asio::placeholders::bytes_transferred,
 							sockets_[i]));
-				}
-				stream_descriptors_.emplace_back(std::move(fd));
+				}		
 			}
 		}
 	}
@@ -88,11 +95,13 @@ struct channel
 		ares_socket_t fd)
 	{
 		::ares_process_fd(channel_, fd, ARES_SOCKET_BAD);
+		getsock();
 	}
 	void write_handler(const boost::system::error_code & ec, std::size_t,
 		ares_socket_t fd)
 	{
 		::ares_process_fd(channel_, ARES_SOCKET_BAD, fd);
+		getsock();
 	}
 };
 	
