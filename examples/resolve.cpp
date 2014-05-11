@@ -5,6 +5,11 @@ void handle_resolve_a(const boost::system::error_code & ec,
 	services::cares::a_reply_iterator iter,
 	const char * input)
 {
+	if (ec)
+	{
+		std::cerr << "A resolve failure: " << ec.message() << std::endl;
+		return;
+	}
 	for (; iter != services::cares::a_reply_iterator();	++iter)
 	{
 		std::cout << input << "\tA\t" << *iter << "\tTTL=" << iter->ttl << std::endl;
@@ -15,6 +20,11 @@ void handle_resolve_aaaa(const boost::system::error_code & ec,
 	services::cares::aaaa_reply_iterator endpoint_iterator,
 	const char * input)
 {
+	if (ec)
+	{
+		std::cerr << "AAAA resolve failure: " << ec.message() << std::endl;
+		return;
+	}
 	for (services::cares::aaaa_reply_iterator it = endpoint_iterator;
 		it != services::cares::aaaa_reply_iterator();
 		++it)

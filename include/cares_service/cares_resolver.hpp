@@ -6,6 +6,7 @@
 #include <boost/make_shared.hpp>
 #include "cares_service/cares_service.hpp"
 #include "cares_service/detail/iterator.hpp"
+#include "cares_service/detail/resolve_result.hpp"
 
 namespace services {
 namespace cares {
@@ -38,6 +39,36 @@ struct resolver
 		ec.clear();
 		ec.assign(::ares_parse_aaaa_reply(abuf, alen, nullptr, addresses, matches), get_error_category());
 	}
+	template <typename T>
+	void parse_reply_into(const unsigned char * abuf, int alen, std::vector<T> & output, boost::system::error_code & ec)
+	{
+		ec.clear();
+		for (int size = 8; true; size += 4)
+		{
+			// allocate memory
+			output.resize(size);
+			// copy size
+			int matches = size;
+			// parse the answer
+			parse_reply(abuf, alen, output.data(), &matches, ec);
+			
+			// on failure we leap out, otherwise we continue to allocate more memory
+			if (ec)
+			{
+				return;
+			}
+			
+			// check if we had enough space
+			if (matches >= size)
+			{
+				continue;
+			}
+			
+			output.resize(matches);
+			return;
+		}
+		assert(0);
+	}
 	template <typename Callback>
 	void resolve_a(const std::string & input, const Callback & callback)
 	{
@@ -49,10 +80,9 @@ struct resolver
 			get_io_service().post(boost::bind<void>(callback, ec, a_reply_iterator()));
 			return;
 		}
-		callback_context<Callback> * context = new callback_context<Callback>();
-		context->self = this;
-		context->callback = callback;
-		::ares_query(chan->get(), input.c_str(), ns_c_in, ns_t_a, &ares_callback_function<struct ares_addrttl, Callback>, context);
+		Callback * cb = new Callback(std::move(callback));
+		chan->query(input, ns_c_in, ns_t_a,
+			boost::bind(&resolver::a_callback<Callback>, this, _1, _2, _3, _4, cb));
 		chan->getsock();
 	};
 	template <typename Callback>
@@ -63,56 +93,59 @@ struct resolver
 		chan->init(ec);
 		if (ec)
 		{
-			get_io_service().post(boost::bind<void>(callback, ec, aaaa_reply_iterator()));
+			get_io_service().post(boost::bind(detail::resolve_result<Callback>(callback, ec), aaaa_reply_iterator()));
 			return;
 		}
-		callback_context<Callback> * context = new callback_context<Callback>();
-		context->self = this;
-		context->callback = callback;
-		::ares_query(chan->get(), input.c_str(), ns_c_in, ns_t_aaaa, &ares_callback_function<struct ares_addr6ttl, Callback>, context);
+		Callback * cb = new Callback(std::move(callback));
+		chan->query(input, ns_c_in, ns_t_aaaa,
+			boost::bind(&resolver::aaaa_callback<Callback>, this, _1, _2, _3, _4, cb));
 		chan->getsock();
 	};
-	template <typename Result, typename Callback>
-	static void ares_callback_function(void *arg, int status, int timeouts, unsigned char *abuf, int alen)
+	/**
+	 * Generic callback for both A and AAAA replies
+	 */
+	template <typename Callback>
+	void aaaa_callback(int status, int timeouts, unsigned char * abuf, int alen, Callback * callback)
 	{
-		assert(arg);
-		boost::shared_ptr<callback_context<Callback> > ctx(static_cast<callback_context<Callback> *>(arg));
+		std::unique_ptr<Callback> cb(callback);
 		boost::system::error_code ec(status, get_error_category());
-		Callback callback = *ctx->callback;
 		if (ec)
 		{
-			assert(ctx->self);
-			ctx->self->get_io_service().post(boost::bind<void>(callback, ec, detail::result_iterator<Result>()));
+			get_io_service().post(boost::bind(detail::resolve_result<Callback>(*callback, ec), aaaa_reply_iterator()));
 			return;
 		}
-		// try parsing answer
-		for (int size = 8; true; size += 4)
+		std::vector<struct ares_addr6ttl> vec;
+		parse_reply_into(abuf, alen, vec, ec);
+		if (ec)
 		{
-			// allocate memory
-			boost::shared_ptr<std::vector<Result> > addresses =
-				boost::make_shared<std::vector<Result> >(size);
-			// copy size
-			int matches = size;
-			
-			// parse the answer
-			ctx->self->parse_reply(abuf, alen, addresses->data(), &matches, ec);
-			//ec.assign(::ares_parse_a_reply(abuf, alen, nullptr, addresses->data(), &matches), get_error_category());
-
-			// on failure we leap out, otherwise we continue to allocate more memory
-			if (ec)
-			{
-				ctx->self->get_io_service().post(boost::bind<void>(callback, ec, detail::result_iterator<Result>()));
-				return;
-			}
-			
-			// check if we had enough space
-			if (matches >= size) continue;
-			addresses->resize(matches);
-			detail::result_iterator<Result> result_iterator(addresses);
-			ctx->self->get_io_service().post(boost::bind<void>(callback, ec, result_iterator));
-			// done
+			get_io_service().post(boost::bind(detail::resolve_result<Callback>(*callback, ec), aaaa_reply_iterator()));
 			return;
 		}
+		aaaa_reply_iterator result_iterator(boost::make_shared<std::vector<struct ares_addr6ttl> >(vec));
+		get_io_service().post(boost::bind(detail::resolve_result<Callback>(*callback, ec), result_iterator));
+	}
+	/**
+	 * Generic callback for both A and AAAA replies
+	 */
+	template <typename Callback>
+	void a_callback(int status, int timeouts, unsigned char * abuf, int alen, Callback * callback)
+	{
+		std::unique_ptr<Callback> cb(callback);
+		boost::system::error_code ec(status, get_error_category());
+		if (ec)
+		{
+			get_io_service().post(boost::bind(detail::resolve_result<Callback>(*callback, ec), a_reply_iterator()));
+			return;
+		}
+		std::vector<struct ares_addrttl> vec;
+		parse_reply_into(abuf, alen, vec, ec);
+		if (ec)
+		{
+			get_io_service().post(boost::bind(detail::resolve_result<Callback>(*callback, ec), a_reply_iterator()));
+			return;
+		}
+		a_reply_iterator result_iterator(boost::make_shared<std::vector<struct ares_addrttl> >(vec));
+		get_io_service().post(boost::bind(detail::resolve_result<Callback>(*callback, ec), result_iterator));
 	}
 };
 

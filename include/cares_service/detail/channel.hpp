@@ -2,6 +2,7 @@
 #define CARES_SERVICE_DETAIL_CHANNEL_HPP_
 
 #include <map>
+#include <memory>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/bind.hpp>
 #include <boost/array.hpp>
@@ -52,6 +53,20 @@ struct channel
 	stream_descriptors_type & get_stream_descriptors()
 	{
 		return stream_descriptors_;
+	}
+	template <typename Callback>
+	void query(const std::string & name, int dnsclass, int type, const Callback & callback)
+	{
+		assert(initialized_);
+		Callback * arg = new Callback(std::move(callback));
+		::ares_query(channel_, name.c_str(), dnsclass, type, &query_callback_wrapper<Callback>, arg);
+	}
+	template <typename Callback>
+	static void query_callback_wrapper(void *arg, int status, int timeouts, unsigned char *abuf, int alen)
+	{
+		assert(arg);
+		std::unique_ptr<Callback> callback(static_cast<Callback *>(arg));
+		(*callback)(status, timeouts, abuf, alen);
 	}
 	void getsock()
 	{
