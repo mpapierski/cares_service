@@ -33,6 +33,21 @@ void handle_resolve_aaaa(const boost::system::error_code & ec,
 	}
 }
 
+void handle_resolve_txt(const boost::system::error_code & ec,
+	services::cares::txt_reply_iterator iter,
+	const char * input)
+{
+	if (ec)
+	{
+		std::cerr << "TXT resolve failure: " << ec.message() << std::endl;
+		return;
+	}
+	for (; iter != services::cares::txt_reply_iterator(); ++iter)
+	{
+		std::cout << input << "\tTXT\t" << *iter << std::endl;
+	}
+}
+
 int
 main(int argc, char * argv[])
 {
@@ -47,6 +62,10 @@ main(int argc, char * argv[])
 			boost::asio::placeholders::iterator,
 			url));
 		resolver.resolve_aaaa(url, boost::bind(&handle_resolve_aaaa,
+			boost::asio::placeholders::error,
+			boost::asio::placeholders::iterator,
+			url));
+		resolver.resolve_txt(url, boost::bind(&handle_resolve_txt,
 			boost::asio::placeholders::error,
 			boost::asio::placeholders::iterator,
 			url));

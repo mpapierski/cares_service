@@ -7,6 +7,8 @@
 #include "cares_service/cares_service.hpp"
 #include "cares_service/detail/iterator.hpp"
 #include "cares_service/detail/resolve_result.hpp"
+#include "cares_service/detail/txt_reply_iterator.hpp"
+
 
 namespace services {
 namespace cares {
@@ -101,6 +103,41 @@ struct resolver
 			boost::bind(&resolver::aaaa_callback<Callback>, this, _1, _2, _3, _4, cb));
 		chan->getsock();
 	};
+	template <typename Callback>
+	void resolve_txt(const std::string & input, const Callback & callback)
+	{
+		boost::shared_ptr<detail::channel> chan = boost::asio::use_service<cares>(io_service_).get_channel();
+		boost::system::error_code ec;
+		chan->init(ec);
+		if (ec)
+		{
+			get_io_service().post(boost::bind(detail::resolve_result<Callback>(callback, ec), txt_reply_iterator()));
+			return;
+		}
+		Callback * cb = new Callback(std::move(callback));
+		chan->query(input, ns_c_in, ns_t_txt,
+			boost::bind(&resolver::txt_callback<Callback>, this, _1, _2, _3, _4, cb));
+		chan->getsock();		
+	}
+	template <typename Callback>
+	void txt_callback(int status, int timeouts, unsigned char * abuf, int alen, Callback * callback)
+	{
+		std::unique_ptr<Callback> cb(callback);
+		boost::system::error_code ec(status, get_error_category());
+		if (ec)
+		{
+			get_io_service().post(boost::bind(detail::resolve_result<Callback>(*callback, ec), txt_reply_iterator()));
+			return;
+		}
+		struct ares_txt_reply * reply;
+		ec.assign(::ares_parse_txt_reply(abuf, alen, &reply), get_error_category());
+		if (ec)
+		{
+			get_io_service().post(boost::bind(detail::resolve_result<Callback>(*callback, ec), txt_reply_iterator()));
+		}
+		boost::shared_ptr<struct ares_txt_reply> shared_reply(reply, &ares_free_data);
+		get_io_service().post(boost::bind(detail::resolve_result<Callback>(*callback, ec), txt_reply_iterator(shared_reply)));
+	}
 	/**
 	 * Generic callback for both A and AAAA replies
 	 */

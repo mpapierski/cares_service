@@ -55,6 +55,7 @@ struct result_iterator
 typedef detail::result_iterator<struct ares_addrttl> a_reply_iterator;
 typedef detail::result_iterator<struct ares_addr6ttl> aaaa_reply_iterator;
 
+
 }
 }
 
